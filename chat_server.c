@@ -93,36 +93,80 @@ do_chat(void *arg)
 {
 	int c_socket = (int) arg;
         char    chatData[CHATDATA];
-		char command_delim[] = "/";
-		char message_delim[] = "]";
+		char commandDelim[] = "/";
+		char messageDelim[] = "]";
 	int	i, n;
 
 	while(1) {
 		memset(chatData, 0, sizeof(chatData));
         if ((n = read(c_socket, chatData, sizeof(chatData))) > 0 ) {
-			char *name = strtok(chatData,message_delim);		//chatData에서 이름과 메시지를 분리
+			char *name = strtok(chatData,messageDelim);		//chatData에서 이름과 메시지를 분리
 			name+=1;
-			char *message = strtok(NULL,message_delim);
+			char *message = strtok(NULL,messageDelim);
 			message+=1;
-			if(strstr(message,command_delim)!=NULL){	//사용자가 명령어를 입력하면 면들어오는 분기
+			if(strstr(message,commandDelim)!=NULL){	//사용자가 명령어를 입력하면 면들어오는 분기
 				char *command;
+				//int commandCheck = 0;
 				char newData[CHATDATA];
 				int dest_socket;
-				command = strtok(message,command_delim);
-				if((dest_socket = atoi(command))>0){
-					message = strtok(NULL,command_delim);
-					//sprintf(message,"[%s] 's whispher : %s\n",name,message);
-					sprintf(newData,"[%s] 's whispher : %s",name,message);
-					write(dest_socket,newData,strlen(newData));
+				command = strtok(message,commandDelim);
+				message = strtok(NULL,commandDelim);
+				//write(dest_socket,newData,strlen(newData));
+				memset(newData,0,sizeof(newData));
+				if((strcmp(command,"who"))==0){	//전체 사용자 출력
+					char concat[CHATDATA];
+					pthread_mutex_lock(&mutex);
+					for(i=0;i<MAX_CLIENT;i++){
+						if(list_c[i].clientsocket>0){
+							sprintf(concat,"name = %s,  socket = %d\n",list_c[i].name,list_c[i].clientsocket);
+							strcat(newData,concat);
+						}
+					}
+					pthread_mutex_unlock(&mutex);
+					write(c_socket,newData,strlen(newData));
 				}
-				else{
-					for(i=0; i < MAX_CLIENT; i++){
-						if(strcmp(command,list_c[i].name)==0){
-							dest_socket = list_c[i].clientsocket;
+				else if((strcmp(command,"changename")==0)){	//이름 바꾸기
+					message+=1;
+					message[strlen(message)]='\0';				
+					pthread_mutex_lock(&mutex);
+					for(i=0;i<MAX_CLIENT;i++){
+						if((strcmp(name,list_c[i].name)==0)){
+							strcpy(list_c[i].name ,message);
+							//strcpy(message ,list_c[i].name);
+							printf("name = %s\n",list_c[i].name);
+						}						
+					}
+					pthread_mutex_unlock(&mutex);
+					sprintf(newData,"name -> %s\n",message);
+					write(c_socket,newData,strlen(newData));
+				}
+				else if((dest_socket = atoi(command))>0){	//사용자가 소켓번호 직접 입력한 후 귓속말
+					pthread_mutex_lock(&mutex);
+					for(i=0;i<MAX_CLIENT;i++){
+						if(dest_socket == list_c[i].clientsocket){
+							write(dest_socket,newData,strlen(newData));
+							sprintf(newData,"[%s] 's whispher : %s",name,message);
+							//commandCheck++;
 							break;
 						}
 					}
+					pthread_mutex_unlock(&mutex);
 				}
+				else{
+					pthread_mutex_lock(&mutex);
+					for(i=0; i < MAX_CLIENT; i++){		//사용자가 이름으로 귓속말
+						//int temp;
+						if((strcmp(command,list_c[i].name)==0)){
+							dest_socket = list_c[i].clientsocket;
+							sprintf(newData,"[%s] 's whispher : %s",name,message);
+							write(dest_socket,newData,strlen(newData));
+							//commandCheck++;
+							break;
+						}
+					}
+					pthread_mutex_unlock(&mutex);
+				}
+				
 			
 			}
 			else{
