@@ -50,9 +50,7 @@ main(int argc, char *argv[])
                 return -1;
         }
 
-        write(c_socket,nickname,sizeof(nickname)); //서버에 닉네임 전송
-
-	pthread_create(&thread_1, NULL, do_send_chat, (void *) c_socket);
+       	pthread_create(&thread_1, NULL, do_send_chat, (void *) c_socket);
 	pthread_create(&thread_2, NULL, do_receive_chat, (void *) c_socket);
 
 	pthread_join(thread_1, NULL);
@@ -64,16 +62,16 @@ main(int argc, char *argv[])
 void *
 do_send_chat(void* arg)
 {
-	char	chatData[CHATDATA];
+	//char	chatData[CHATDATA];
 	char	buf[CHATDATA];
 	int	n;
 	int	c_socket = (int) arg;		// client socket
-
+         write(c_socket,nickname,sizeof(nickname)); //서버에 닉네임 전송
 	while(1) {
 		memset(buf, 0, sizeof(buf));
                 if ((n = read(0, buf, sizeof(buf))) > 0 ) {
-                	sprintf(chatData, "[%s] %s", nickname, buf);
-                        write(c_socket, chatData, strlen(chatData));
+                	//sprintf(chatData, "[%s] %s", nickname, buf);
+                        write(c_socket, buf, strlen(buf));
 
                         if (!strncmp(buf, escape, strlen(escape))) {
 				pthread_kill(thread_2, SIGINT);
